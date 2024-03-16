@@ -1,0 +1,3 @@
+[tools]
+go = "1.22.0"
+"go:github.com/cespare/reflex" = "latest"
