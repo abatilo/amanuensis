@@ -2,12 +2,14 @@ package feedreader
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/abatilo/amanuensis/internal/db"
 	"gorm.io/gorm"
 )
 
@@ -45,9 +47,17 @@ func (s *Server) Start() error {
 		close(done)
 	}()
 
+	err := s.db.AutoMigrate(
+		&db.Feed{},
+		&db.Validated{},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to migrate database: %w", err)
+	}
+
 	s.prepareRoutes()
 	s.logger.Info("starting server", "addr", s.srv.Addr)
-	err := s.srv.ListenAndServe()
+	err = s.srv.ListenAndServe()
 	<-done
 	return err
 }
