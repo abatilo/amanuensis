@@ -1,29 +1,27 @@
 package layouts
 
 templ Base(content templ.Component) {
-  <html>
+<html>
 
-  <head>
-    <script src="https://unpkg.com/htmx.org@1.9.11"
-      integrity="sha384-0gxUXCCR8yv9FM2b+U3FDbsKthCI66oH5IA9fHppQq9DDMHuMauqq1ZHBpJxQ0J0"
-      crossorigin="anonymous"></script>
-    <link rel="stylesheet" href="https://unpkg.com/mvp.css@1.14.0"
-    integrity="sha384-JwppoMpFe6ij+hfbcf30r4/9DVvRMV+iht3wH61/fm2pZ2lDTsHCkSmHyTzRihRz"
-    crossorigin="anonymous"></link>
-  </head>
+<head>
+  <script src="https://unpkg.com/htmx.org@1.9.11"
+    integrity="sha384-0gxUXCCR8yv9FM2b+U3FDbsKthCI66oH5IA9fHppQq9DDMHuMauqq1ZHBpJxQ0J0"
+    crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://unpkg.com/mvp.css@1.14.0"
+    integrity="sha384-JwppoMpFe6ij+hfbcf30r4/9DVvRMV+iht3wH61/fm2pZ2lDTsHCkSmHyTzRihRz" crossorigin="anonymous" />
+</head>
 
-  <body>
-    <main>
-      <h1>Amanuensis</h1>
-      @content
-    </main>
-  </body>
+<body>
+  <main>
+    <h1>Amanuensis</h1>
+    @content
+  </main>
+</body>
+<footer>
+  <hr />
+  <p>Navigation</p>
+  <a href="/">Home</a>
+</footer>
 
-  <footer>
-    <hr />
-    <p>Navigation</p>
-    <a href="/">Home</a>
-  </footer>
-
-  </html>
+</html>
 }
