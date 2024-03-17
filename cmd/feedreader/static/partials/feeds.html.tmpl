@@ -1,0 +1,18 @@
+{{define "feeds"}}
+<table>
+  <thead>
+    <tr>
+      <td>ID</td>
+      <td>URL</td>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .}}
+    <tr>
+      <td>{{.ID}}</td>
+      <td>{{.URL}}</td>
+    </tr>
+    {{end}}
+  </tbody>
+</table>
+{{end}}

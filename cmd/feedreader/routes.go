@@ -1,29 +1,60 @@
 package feedreader
 
 import (
-	"encoding/json"
-	"errors"
+	"embed"
+	"html/template"
 	"net/http"
 
 	"github.com/PuerkitoBio/purell"
 	"github.com/abatilo/amanuensis/internal/db"
-	"gorm.io/gorm"
 )
 
+//go:embed static/*
+var static embed.FS
+
 func (s *Server) prepareRoutes() {
-	s.mux.HandleFunc("GET /feeds", s.listFeeds())
-	s.mux.HandleFunc("GET /feeds/{id}", s.getFeed())
-	s.mux.HandleFunc("POST /feeds", s.createFeed())
+	s.mux.HandleFunc("GET /", s.index())
+	s.mux.HandleFunc("GET /feeds", s.renderFeeds())
+	s.mux.HandleFunc("GET /feeds/create", s.renderCreateFeed())
+	s.mux.HandleFunc("POST /feeds/create", s.createFeed())
 }
 
-func (s *Server) listFeeds() http.HandlerFunc {
+func (s *Server) index() http.HandlerFunc {
+	logger := s.logger.With("handler", "root")
+
+	tmpl, err := template.ParseFS(
+		static,
+		"static/layouts/base.html.tmpl",
+		"static/pages/index.html",
+	)
+	if err != nil {
+		logger.Error("Failed to parse template", "error", err)
+		panic(err)
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = tmpl.ExecuteTemplate(w, "base", nil)
+	}
+}
+
+func (s *Server) renderFeeds() http.HandlerFunc {
+	logger := s.logger.With("handler", "renderFeeds")
+
 	type feed struct {
 		ID  uint   `json:"id"`
 		URL string `json:"url"`
 	}
 
-	type listFeedsResponse struct {
-		Feeds []feed `json:"feeds"`
+	tmpl, err := template.ParseFS(
+		static,
+		"static/layouts/base.html.tmpl",
+		"static/pages/feeds/index.html.tmpl",
+		"static/partials/feeds.html.tmpl",
+	)
+	if err != nil {
+		logger.Error("Failed to parse template", "error", err)
+		panic(err)
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -35,52 +66,33 @@ func (s *Server) listFeeds() http.HandlerFunc {
 			return
 		}
 
-		resp := listFeedsResponse{Feeds: feeds}
-		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			s.logger.Error("failed to encode response", "error", err)
-			http.Error(w, "failed to encode response", http.StatusInternalServerError)
+		err = tmpl.ExecuteTemplate(w, "base", feeds)
+		if err != nil {
+			logger.Error("Failed to render template", "error", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
 }
 
-func (s *Server) getFeed() http.HandlerFunc {
-	logger := s.logger.With("handler", "getFeed")
+func (s *Server) renderCreateFeed() http.HandlerFunc {
+	logger := s.logger.With("handler", "renderCreateFeed")
 
-	type feed struct {
-		ID  uint   `json:"id"`
-		URL string `json:"url"`
-	}
-
-	type getFeedResponse struct {
-		ID  uint   `json:"id"`
-		URL string `json:"url"`
+	tmpl, err := template.ParseFS(
+		static,
+		"static/layouts/base.html.tmpl",
+		"static/pages/feeds/create.html.tmpl",
+	)
+	if err != nil {
+		logger.Error("Failed to parse template", "error", err)
+		panic(err)
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
-		if id == "" {
-			logger.Error("missing id")
-			http.Error(w, "missing id", http.StatusBadRequest)
-			return
-		}
-
-		var feed feed
-		result := s.db.First(&feed, id)
-		if result.Error != nil {
-			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-				http.Error(w, "feed not found", http.StatusNotFound)
-				return
-			}
-
-			s.logger.Error("failed to fetch feed", "error", result.Error)
-			http.Error(w, "failed to fetch feed", http.StatusInternalServerError)
-			return
-		}
-
-		if err := json.NewEncoder(w).Encode(getFeedResponse{ID: feed.ID, URL: feed.URL}); err != nil {
-			s.logger.Error("failed to encode response", "error", err)
-			http.Error(w, "failed to encode response", http.StatusInternalServerError)
+		err := tmpl.ExecuteTemplate(w, "base", nil)
+		if err != nil {
+			logger.Error("Failed to render template", "error", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
@@ -89,23 +101,27 @@ func (s *Server) getFeed() http.HandlerFunc {
 func (s *Server) createFeed() http.HandlerFunc {
 	logger := s.logger.With("handler", "createFeed")
 
-	type createFeedRequest struct {
+	type req struct {
 		URL string `json:"url"`
 	}
-	type createFeedResponse struct {
-		ID uint `json:"id"`
+
+	type feed struct {
+		ID  uint   `json:"id"`
+		URL string `json:"url"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req createFeedRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			s.logger.Error("failed to decode request", "error", err)
-			http.Error(w, "failed to decode request", http.StatusBadRequest)
+		err := r.ParseForm()
+		if err != nil {
+			logger.Error("failed to parse form", "error", err)
+			http.Error(w, "failed to parse form", http.StatusInternalServerError)
 			return
 		}
+		req := req{
+			URL: r.FormValue("url"),
+		}
 
-		sanitizedURL := purell.MustNormalizeURLString(req.URL, purell.FlagsAllGreedy)
-
+		sanitizedURL := purell.MustNormalizeURLString(req.URL, purell.FlagsUsuallySafeGreedy)
 		if sanitizedURL == "" {
 			s.logger.Error("invalid URL", "url", req.URL)
 			http.Error(w, "invalid URL", http.StatusBadRequest)
@@ -114,19 +130,22 @@ func (s *Server) createFeed() http.HandlerFunc {
 
 		logger.Debug("creating feed", "url", sanitizedURL)
 
-		feed := &db.Feed{URL: sanitizedURL}
-		result := s.db.Where(db.Feed{URL: sanitizedURL}).FirstOrCreate(feed)
+		f := &db.Feed{URL: sanitizedURL}
+		result := s.db.Where(db.Feed{URL: sanitizedURL}).FirstOrCreate(f)
 		if result.Error != nil {
 			s.logger.Error("failed to create feed", "error", result.Error)
 			http.Error(w, "failed to create feed", http.StatusInternalServerError)
 			return
 		}
 
-		resp := createFeedResponse{ID: feed.ID}
-		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			s.logger.Error("failed to encode response", "error", err)
-			http.Error(w, "failed to encode response", http.StatusInternalServerError)
+		var feeds []feed
+		result = s.db.Find(&feeds)
+		if result.Error != nil {
+			s.logger.Error("failed to fetch feeds", "error", result.Error)
+			http.Error(w, "failed to fetch feeds", http.StatusInternalServerError)
 			return
 		}
+
+		w.Header().Set("HX-Location", "/feeds")
 	}
 }
