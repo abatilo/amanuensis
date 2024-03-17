@@ -1,23 +1,29 @@
 {{define "content"}}
-<div>
-  <a href="/feeds/create">Add new feed</a>
-</div>
-<div>
-  <table>
-    <thead>
-      <tr>
-        <td>ID</td>
-        <td>URL</td>
-      </tr>
-    </thead>
-    <tbody>
-      {{range .}}
-      <tr>
-        <td>{{.ID}}</td>
-        <td>{{.URL}}</td>
-      </tr>
-      {{end}}
-    </tbody>
-  </table>
-</div>
+<section>
+{{if .}}
+<p>
+<a href="/feeds/create">Add new feed</a>
+</p>
+<table>
+  <thead>
+    <tr>
+      <td>ID</td>
+      <td>URL</td>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .}}
+    <tr>
+      <td>{{.ID}}</td>
+      <td><a href={{.URL}}>{{.URL}}</a></td>
+    </tr>
+    {{end}}
+  </tbody>
+</table>
+{{else}}
+  <p>
+  No feeds found. <a href="/feeds/create">Add one to get started</a>
+  </p>
+{{end}}
+</section>
 {{end}}

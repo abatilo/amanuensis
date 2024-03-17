@@ -4,21 +4,24 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/abatilo/amanuensis/internal/db"
 	"gorm.io/gorm"
 )
 
 type Server struct {
-	ctx    context.Context
-	logger *slog.Logger
-	db     *gorm.DB
-	mux    *http.ServeMux
-	srv    *http.Server
+	ctx        context.Context
+	logger     *slog.Logger
+	db         *gorm.DB
+	mux        *http.ServeMux
+	srv        *http.Server
+	httpClient *http.Client
 }
 
 func NewServer(ctx context.Context, cfg Config) *Server {
@@ -28,12 +31,25 @@ func NewServer(ctx context.Context, cfg Config) *Server {
 		Handler: mux,
 	}
 
+	c := &http.Client{
+		Transport: &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ResponseHeaderTimeout: 10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
+
 	return &Server{
-		ctx:    ctx,
-		logger: cfg.logger,
-		db:     cfg.db,
-		mux:    mux,
-		srv:    srv,
+		ctx:        ctx,
+		logger:     cfg.logger,
+		db:         cfg.db,
+		mux:        mux,
+		srv:        srv,
+		httpClient: c,
 	}
 }
 

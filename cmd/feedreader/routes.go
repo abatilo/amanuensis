@@ -50,7 +50,6 @@ func (s *Server) renderFeeds() http.HandlerFunc {
 		static,
 		"static/layouts/base.html.tmpl",
 		"static/pages/feeds/index.html.tmpl",
-		"static/partials/feeds.html.tmpl",
 	)
 	if err != nil {
 		logger.Error("Failed to parse template", "error", err)
@@ -125,6 +124,27 @@ func (s *Server) createFeed() http.HandlerFunc {
 		if sanitizedURL == "" {
 			s.logger.Error("invalid URL", "url", req.URL)
 			http.Error(w, "invalid URL", http.StatusBadRequest)
+			return
+		}
+
+		// Send HTTP request to the URL to check if it's a valid feed
+		checkRequest, err := http.NewRequestWithContext(r.Context(), "GET", sanitizedURL, nil)
+		if err != nil {
+			s.logger.Error("failed to create request", "error", err)
+			http.Error(w, "failed to create request", http.StatusInternalServerError)
+			return
+		}
+
+		checkResponse, err := s.httpClient.Do(checkRequest)
+		if err != nil {
+			s.logger.Error("failed to send request", "error", err)
+			http.Error(w, "failed to send request", http.StatusInternalServerError)
+			return
+		}
+
+		if checkResponse.StatusCode != http.StatusOK {
+			s.logger.Error("invalid status code", "status", checkResponse.StatusCode)
+			http.Error(w, "invalid status code", http.StatusBadRequest)
 			return
 		}
 
