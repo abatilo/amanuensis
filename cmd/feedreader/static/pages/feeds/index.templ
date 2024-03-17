@@ -3,34 +3,35 @@ package feeds
 import "strconv"
 
 templ FeedRow(id uint, url string) {
-<tr>
-  <td>{ strconv.FormatUint(uint64(id), 10) }</td>
-  <td><a href={ templ.URL(url) }>{ url }</a></td>
-</tr>
+	<tr>
+		<td>{ strconv.FormatUint(uint64(id), 10) }</td>
+		<td><a href={ templ.URL(url) }>{ url }</a></td>
+	</tr>
 }
 
 templ Index(feeds []templ.Component) {
-<section>
-  if 0 < len(feeds) { <p>
-    <a href="/feeds/create">Add new feed</a>
-    </p>
-    <table>
-      <thead>
-        <tr>
-          <td>ID</td>
-          <td>URL</td>
-        </tr>
-      </thead>
-      <tbody>
-        for _, feed := range feeds {
-        @feed
-        }
-      </tbody>
-    </table>
-    } else {
-    <p>
-      No feeds found. <a href="/feeds/create">Add one to get started</a>
-    </p>
-    }
-</section>
+	if len(feeds) == 0 {
+		<p>
+			No feeds found. <a href="/feeds/create">Add one to get started</a>
+		</p>
+	} else {
+		<section>
+			<p>
+				<a href="/feeds/create">Add new feed</a>
+			</p>
+			<table>
+				<thead>
+					<tr>
+						<td>ID</td>
+						<td>URL</td>
+					</tr>
+				</thead>
+				<tbody>
+					for _, feed := range feeds {
+						@feed
+					}
+				</tbody>
+			</table>
+		</section>
+	}
 }
