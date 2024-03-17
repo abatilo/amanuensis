@@ -1,3 +1,23 @@
 [tools]
 go = "1.22.0"
-"go:github.com/cespare/reflex" = "latest"
+
+[tasks.install]
+description = "Perform all code generation"
+run = [
+  "./tools/install.sh",
+]
+
+[tasks.generate]
+depends = ["install"]
+description = "Perform all code generation"
+run = [
+  "templ fmt",
+  "templ generate",
+]
+
+[tasks.run]
+depends = ["install", "generate"]
+description = "Perform all code generation"
+run = [
+  "go run cmd/*.go feedreader --verbose"
+]

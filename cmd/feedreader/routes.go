@@ -1,16 +1,15 @@
 package feedreader
 
 import (
-	"embed"
-	"html/template"
 	"net/http"
 
 	"github.com/PuerkitoBio/purell"
+	"github.com/a-h/templ"
+	"github.com/abatilo/amanuensis/cmd/feedreader/static/layouts"
+	"github.com/abatilo/amanuensis/cmd/feedreader/static/pages"
+	pagesfeeds "github.com/abatilo/amanuensis/cmd/feedreader/static/pages/feeds"
 	"github.com/abatilo/amanuensis/internal/db"
 )
-
-//go:embed static/*
-var static embed.FS
 
 func (s *Server) prepareRoutes() {
 	s.mux.HandleFunc("GET /", s.index())
@@ -20,40 +19,16 @@ func (s *Server) prepareRoutes() {
 }
 
 func (s *Server) index() http.HandlerFunc {
-	logger := s.logger.With("handler", "root")
-
-	tmpl, err := template.ParseFS(
-		static,
-		"static/layouts/base.html.tmpl",
-		"static/pages/index.html",
-	)
-	if err != nil {
-		logger.Error("Failed to parse template", "error", err)
-		panic(err)
-	}
-
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = tmpl.ExecuteTemplate(w, "base", nil)
+		_ = layouts.Base(pages.Index()).Render(r.Context(), w)
 	}
 }
 
 func (s *Server) renderFeeds() http.HandlerFunc {
-	logger := s.logger.With("handler", "renderFeeds")
-
 	type feed struct {
 		ID  uint   `json:"id"`
 		URL string `json:"url"`
-	}
-
-	tmpl, err := template.ParseFS(
-		static,
-		"static/layouts/base.html.tmpl",
-		"static/pages/feeds/index.html.tmpl",
-	)
-	if err != nil {
-		logger.Error("Failed to parse template", "error", err)
-		panic(err)
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -65,35 +40,17 @@ func (s *Server) renderFeeds() http.HandlerFunc {
 			return
 		}
 
-		err = tmpl.ExecuteTemplate(w, "base", feeds)
-		if err != nil {
-			logger.Error("Failed to render template", "error", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		feedRows := make([]templ.Component, len(feeds))
+		for i, f := range feeds {
+			feedRows[i] = pagesfeeds.FeedRow(f.ID, f.URL)
 		}
+		_ = layouts.Base(pagesfeeds.Index(feedRows)).Render(r.Context(), w)
 	}
 }
 
 func (s *Server) renderCreateFeed() http.HandlerFunc {
-	logger := s.logger.With("handler", "renderCreateFeed")
-
-	tmpl, err := template.ParseFS(
-		static,
-		"static/layouts/base.html.tmpl",
-		"static/pages/feeds/create.html.tmpl",
-	)
-	if err != nil {
-		logger.Error("Failed to parse template", "error", err)
-		panic(err)
-	}
-
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := tmpl.ExecuteTemplate(w, "base", nil)
-		if err != nil {
-			logger.Error("Failed to render template", "error", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		_ = layouts.Base(pagesfeeds.Create()).Render(r.Context(), w)
 	}
 }
 
